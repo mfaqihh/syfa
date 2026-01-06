@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none;
+}
+
+/* Rappasoft Livewire Tables - Custom Styling */
+/* Per Page Dropdown */
+[wire\:key*="table"] select,
+.livewire-tables select {
+    border-radius: 0.375rem !important;
+    border-color: #d9dee3 !important;
+    padding: 0.4375rem 2.25rem 0.4375rem 0.875rem !important;
+    font-size: 0.9375rem !important;
+    background-color: #fff !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23697a8d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 14px 10px !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+[wire\:key*="table"] select:focus,
+.livewire-tables select:focus {
+    border-color: #7367f0 !important;
+    box-shadow: 0 0 0.25rem 0.05rem rgba(115, 103, 240, 0.1) !important;
+    outline: none !important;
+}
+
+/* Search Input */
+[wire\:key*="table"] input[type="text"],
+.livewire-tables input[type="text"] {
+    border-radius: 0.375rem !important;
+    border-color: #d9dee3 !important;
+    padding: 0.4375rem 0.875rem !important;
+    font-size: 0.9375rem !important;
+}
+
+[wire\:key*="table"] input[type="text"]:focus,
+.livewire-tables input[type="text"]:focus {
+    border-color: #7367f0 !important;
+    box-shadow: 0 0 0.25rem 0.05rem rgba(115, 103, 240, 0.1) !important;
+    outline: none !important;
+}
+
+/* Search Input Group - Fix clear button */
+[wire\:key*="table"] .inline-flex,
+.livewire-tables .inline-flex {
+    display: flex !important;
+    align-items: stretch !important;
+}
+
+[wire\:key*="table"] .inline-flex input[type="text"],
+.livewire-tables .inline-flex input[type="text"] {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right: none !important;
+}
+
+/* Clear/Cancel Button Styling */
+[wire\:key*="table"] .inline-flex button,
+.livewire-tables .inline-flex button,
+[wire\:key*="table"] button[wire\:click*="clearSearch"],
+.livewire-tables button[wire\:click*="clearSearch"] {
+    border: 1px solid #d9dee3 !important;
+    border-left: none !important;
+    border-radius: 0 0.375rem 0.375rem 0 !important;
+    background-color: #fff !important;
+    padding: 0.4375rem 0.75rem !important;
+    color: #697a8d !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+[wire\:key*="table"] .inline-flex button:hover,
+.livewire-tables .inline-flex button:hover,
+[wire\:key*="table"] button[wire\:click*="clearSearch"]:hover,
+.livewire-tables button[wire\:click*="clearSearch"]:hover {
+    background-color: #f8f8f8 !important;
+    color: #566a7f !important;
+}
+
+/* When input is focused, also style the button border */
+[wire\:key*="table"] .inline-flex:focus-within button,
+.livewire-tables .inline-flex:focus-within button {
+    border-color: #7367f0 !important;
+}
