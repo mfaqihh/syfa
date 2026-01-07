@@ -14,7 +14,7 @@ use Livewire\WithFileUploads;
 #[Title('KOL Configuration')]
 class Index extends Component
 {
-    use WithCrudActions, WithFileUploads;
+    use WithCrudActions;
 
     // Form fields
     public string $kol = '';

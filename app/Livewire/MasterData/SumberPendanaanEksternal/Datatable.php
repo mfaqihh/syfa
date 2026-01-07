@@ -25,9 +25,6 @@ class Datatable extends DataTableComponent
         $this->setTableAttributes([
             'class' => 'table table-hover',
         ]);
-        $this->setTheadAttributes([
-            'class' => '',
-        ]);
 
         // Pagination
         $this->setPerPageAccepted([10, 25, 50, 100]);

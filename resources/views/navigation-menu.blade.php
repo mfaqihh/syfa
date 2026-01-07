@@ -35,10 +35,30 @@
             </a>
         </li>
 
+        <!-- Peminjaman Dana -->
+        <li class="menu-header small">
+            <span class="menu-header-text" data-i18n="Apps & Pages">Peminjaman Dana</span>
+        </li>
 
+        <li class="menu-item {{ request()->routeIs('peminjaman-dana') ? 'active' : '' }}">
+            <a href="{{ route('peminjaman-dana') }}" class="menu-link" wire:navigate.hover>
+                <i class="menu-icon tf-icons ti ti-wallet"></i>
+                <div data-i18n="Peminjaman Dana">Peminjaman Dana</div>
+            </a>
+        </li>
+
+        <li class="menu-item {{ request()->routeIs('ar-perbulan') ? 'active' : '' }}">
+            <a href="{{ route('ar-perbulan') }}" class="menu-link" wire:navigate.hover>
+                <i class="menu-icon tf-icons ti ti-briefcase"></i>
+                <div data-i18n="Ar Perbulan">Ar Perbulan</div>
+            </a>
+        </li>
+
+        <!-- Master Data -->
         <li class="menu-header small">
             <span class="menu-header-text" data-i18n="Apps & Pages">Master Data</span>
         </li>
+
         <li class="menu-item {{ request()->routeIs('master-data.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ti ti-database"></i>
@@ -53,22 +73,38 @@
                     </a>
                 </li>
 
-                <li
-                    class="menu-item {{ request()->routeIs('master-data.kol-configuration') ? 'active' : '' }}">
-                    <a href="{{ route('master-data.kol-configuration') }}" class="menu-link"
-                        wire:navigate.hover>
+                <li class="menu-item {{ request()->routeIs('master-data.kol-configuration') ? 'active' : '' }}">
+                    <a href="{{ route('master-data.kol-configuration') }}" class="menu-link" wire:navigate.hover>
                         <div data-i18n="Kol Configuration">Kol Configuration</div>
                     </a>
                 </li>
 
+                <li class="menu-item {{ request()->routeIs('master-data.debitur-dan-investor') ? 'active' : '' }}">
+                    <a href="{{ route('master-data.debitur-dan-investor') }}" class="menu-link" wire:navigate.hover>
+                        <div data-i18n="Debitur Dan Investor">Debitur Dan Investor</div>
+                    </a>
+                </li>
+
                 <li class="menu-item {{ request()->routeIs('master-data.cells-project') ? 'active' : '' }}">
-                    <a href="{{ route('master-data.cells-project') }}" class="menu-link"
-                        wire:navigate.hover>
+                    <a href="{{ route('master-data.cells-project') }}" class="menu-link" wire:navigate.hover>
                         <div data-i18n="Cells Project">Cells Project</div>
                     </a>
                 </li>
             </ul>
         </li>
 
+        <li class="menu-header small">
+            <span class="menu-header-text" data-i18n="Apps & Pages">Access Control</span>
+        </li>
+
+        <li class="menu-item {{ request()->routeIs('access-control.*') ? 'active open' : '' }}">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons ti ti-lock"></i>
+                <div data-i18n="Access Control">Access Control</div>
+            </a>
+            <ul class="menu-sub">
+  
+            </ul>
+        </li>
     </ul>
 </aside>
