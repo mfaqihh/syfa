@@ -2,124 +2,212 @@
 
 namespace App\Livewire\AccessControl\Role;
 
+use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use Livewire\Attributes\Title;
-use Livewire\Attributes\Layout;
+use Livewire\Attributes\{Title, Layout, Computed};
+use Spatie\Permission\Models\{Role, Permission};
+use App\Livewire\Traits\WithAccessControl;
+use Illuminate\Support\Facades\DB;
 
 #[Layout('layouts.app')]
 #[Title('Role Management')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithPagination, WithAccessControl;
 
-    public $search = '';
-    public $name = '';
-    public $selectedPermissions = [];
-    public $roleId = null;
-    public $deleteId = null;
-    public $editMode = false;
+    /*
+    |--------------------------------------------------------------------------
+    | Form Properties
+    |--------------------------------------------------------------------------
+    */
+    public string $name = '';
+    public array $selectedPermissions = [];
+    public ?int $roleId = null;
 
-    protected $paginationTheme = 'bootstrap';
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Rules & Messages
+    |--------------------------------------------------------------------------
+    */
+    protected function rules(): array
+    {
+        $uniqueRule = $this->editMode 
+            ? "unique:roles,name,{$this->roleId}" 
+            : 'unique:roles,name';
 
-    protected $rules = [
-        'name' => 'required|string|max:255|unique:roles,name',
-        'selectedPermissions' => 'array',
-    ];
+        return [
+            'name' => ['required', 'string', 'max:255', $uniqueRule],
+            'selectedPermissions' => ['array'],
+            'selectedPermissions.*' => ['string', 'exists:permissions,name'],
+        ];
+    }
 
-    protected $messages = [
+    protected array $messages = [
         'name.required' => 'Nama role wajib diisi.',
         'name.unique' => 'Nama role sudah digunakan.',
+        'name.max' => 'Nama role maksimal 255 karakter.',
     ];
 
-    public function updatingSearch()
+    /*
+    |--------------------------------------------------------------------------
+    | Computed Properties
+    |--------------------------------------------------------------------------
+    */
+    #[Computed]
+    public function roles()
     {
-        $this->resetPage();
+        // Get the morph key from permission config
+        $morphKey = config('permission.column_names.model_morph_key', 'model_id');
+        
+        return Role::query()
+            ->with('permissions')
+            ->addSelect([
+                'users_count' => DB::table('model_has_roles')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('model_has_roles.role_id', 'roles.id')
+                    ->where('model_type', User::class)
+            ])
+            ->when($this->search, fn($query) => 
+                $query->where('name', 'like', "%{$this->search}%")
+            )
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
     }
 
-    public function resetForm()
+    #[Computed]
+    public function permissions()
     {
-        $this->reset(['name', 'selectedPermissions', 'roleId', 'editMode']);
-        $this->resetValidation();
+        return Permission::query()
+            ->orderBy('name')
+            ->get();
     }
 
-    public function edit($id)
+    #[Computed]
+    public function groupedPermissions()
+    {
+        return $this->permissions->groupBy(
+            fn($permission) => explode('.', $permission->name)[0] ?? 'other'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD Operations
+    |--------------------------------------------------------------------------
+    */
+    public function edit(int $id): void
     {
         $this->resetForm();
+        
+        $role = Role::with('permissions')->findOrFail($id);
+        
         $this->editMode = true;
         $this->roleId = $id;
-
-        $role = Role::findOrFail($id);
         $this->name = $role->name;
         $this->selectedPermissions = $role->permissions->pluck('name')->toArray();
     }
 
-    public function save()
+    public function save(): void
     {
-        $rules = $this->rules;
-        if ($this->editMode) {
-            $rules['name'] = 'required|string|max:255|unique:roles,name,' . $this->roleId;
-        }
-        $this->validate($rules);
+        $this->validate();
 
         if ($this->editMode) {
-            $role = Role::findOrFail($this->roleId);
-            $role->update(['name' => $this->name]);
-            $role->syncPermissions($this->selectedPermissions);
-
-            session()->flash('success', 'Role berhasil diperbarui.');
+            $this->updateRole();
         } else {
-            $role = Role::create(['name' => $this->name]);
-            $role->syncPermissions($this->selectedPermissions);
-
-            session()->flash('success', 'Role berhasil ditambahkan.');
+            $this->createRole();
         }
 
         $this->resetForm();
-        $this->dispatch('closeModal');
+        $this->closeFormModal();
     }
 
-    public function deleteConfirm($id)
+    public function confirmDelete(): void
     {
-        $this->deleteId = $id;
-        $this->dispatch('openDeleteModal');
-    }
-
-    public function confirmDelete()
-    {
-        $role = Role::findOrFail($this->deleteId);
-
-        // Check if role has users
-        if ($role->users()->count() > 0) {
-            session()->flash('error', 'Role tidak dapat dihapus karena masih digunakan oleh user.');
-            $this->dispatch('closeDeleteModal');
+        if (empty($this->deleteId)) {
+            $this->toastError('ID role tidak valid.');
+            $this->closeDeleteModal();
             return;
         }
 
-        $role->delete();
+        $role = Role::find($this->deleteId);
+        
+        if (!$role) {
+            $this->toastError('Role tidak ditemukan.');
+            $this->closeDeleteModal();
+            return;
+        }
 
-        session()->flash('success', 'Role berhasil dihapus.');
-        $this->dispatch('closeDeleteModal');
-        $this->deleteId = null;
+        if ($this->hasAssignedUsers($role)) {
+            $this->toastError('Role tidak dapat dihapus karena masih digunakan oleh user.');
+            $this->closeDeleteModal();
+            return;
+        }
+
+        // Detach all permissions first to avoid relationship issues
+        $role->permissions()->detach();
+        
+        $role->delete();
+        
+        $this->toastSuccess($this->getSuccessMessage('delete', 'Role'));
+        $this->closeDeleteModal();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Private Methods
+    |--------------------------------------------------------------------------
+    */
+    private function createRole(): void
+    {
+        $role = Role::create(['name' => $this->name]);
+        $role->syncPermissions($this->selectedPermissions);
+        
+        $this->toastSuccess($this->getSuccessMessage('create', 'Role'));
+    }
+
+    private function updateRole(): void
+    {
+        $role = Role::findOrFail($this->roleId);
+        $role->update(['name' => $this->name]);
+        $role->syncPermissions($this->selectedPermissions);
+        
+        $this->toastSuccess($this->getSuccessMessage('update', 'Role'));
+    }
+
+    private function hasAssignedUsers(Role $role): bool
+    {
+        return DB::table('model_has_roles')
+            ->where('role_id', $role->id)
+            ->where('model_type', User::class)
+            ->exists();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trait Implementation
+    |--------------------------------------------------------------------------
+    */
+    protected function getFormFields(): array
+    {
+        return ['name', 'selectedPermissions', 'roleId'];
+    }
+
+    protected function getFormData(): array
+    {
+        return [
+            'name' => $this->name,
+            'permissions' => $this->selectedPermissions,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Render
+    |--------------------------------------------------------------------------
+    */
     public function render()
     {
-        $roles = Role::with('permissions')
-            ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%');
-            })
-            ->withCount('users')
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        $permissions = Permission::orderBy('name')->get();
-
-        return view('livewire.access-control.role.index', [
-            'roles' => $roles,
-            'permissions' => $permissions,
-        ]);
+        return view('livewire.access-control.role.index');
     }
 }

@@ -4,113 +4,171 @@ namespace App\Livewire\AccessControl\Permission;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\{Title, Layout, Computed};
 use Spatie\Permission\Models\Permission;
-use Livewire\Attributes\Title;
-use Livewire\Attributes\Layout;
+use App\Livewire\Traits\WithAccessControl;
 
 #[Layout('layouts.app')]
 #[Title('Permission Management')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithPagination, WithAccessControl;
 
-    public $search = '';
-    public $name = '';
-    public $permissionId = null;
-    public $deleteId = null;
-    public $editMode = false;
+    /*
+    |--------------------------------------------------------------------------
+    | Form Properties
+    |--------------------------------------------------------------------------
+    */
+    public string $name = '';
+    public ?int $permissionId = null;
 
-    protected $paginationTheme = 'bootstrap';
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Rules & Messages
+    |--------------------------------------------------------------------------
+    */
+    protected function rules(): array
+    {
+        $uniqueRule = $this->editMode 
+            ? "unique:permissions,name,{$this->permissionId}" 
+            : 'unique:permissions,name';
 
-    protected $rules = [
-        'name' => 'required|string|max:255|unique:permissions,name',
-    ];
+        return [
+            'name' => ['required', 'string', 'max:255', $uniqueRule],
+        ];
+    }
 
-    protected $messages = [
+    protected array $messages = [
         'name.required' => 'Nama permission wajib diisi.',
         'name.unique' => 'Nama permission sudah digunakan.',
+        'name.max' => 'Nama permission maksimal 255 karakter.',
     ];
 
-    public function updatingSearch()
+    /*
+    |--------------------------------------------------------------------------
+    | Computed Properties
+    |--------------------------------------------------------------------------
+    */
+    #[Computed]
+    public function permissions()
     {
-        $this->resetPage();
+        return Permission::query()
+            ->with('roles')
+            ->withCount('roles')
+            ->when($this->search, fn($query) => 
+                $query->where('name', 'like', "%{$this->search}%")
+            )
+            ->orderBy('name')
+            ->paginate(15);
     }
 
-    public function resetForm()
-    {
-        $this->reset(['name', 'permissionId', 'editMode']);
-        $this->resetValidation();
-    }
-
-    public function edit($id)
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD Operations
+    |--------------------------------------------------------------------------
+    */
+    public function edit(int $id): void
     {
         $this->resetForm();
+        
+        $permission = Permission::findOrFail($id);
+        
         $this->editMode = true;
         $this->permissionId = $id;
-
-        $permission = Permission::findOrFail($id);
         $this->name = $permission->name;
     }
 
-    public function save()
+    public function save(): void
     {
-        $rules = $this->rules;
-        if ($this->editMode) {
-            $rules['name'] = 'required|string|max:255|unique:permissions,name,' . $this->permissionId;
-        }
-        $this->validate($rules);
+        $this->validate();
+
+        $data = $this->getFormData();
 
         if ($this->editMode) {
-            $permission = Permission::findOrFail($this->permissionId);
-            $permission->update(['name' => $this->name]);
-
-            session()->flash('success', 'Permission berhasil diperbarui.');
+            $this->updatePermission($data);
         } else {
-            Permission::create(['name' => $this->name]);
-
-            session()->flash('success', 'Permission berhasil ditambahkan.');
+            $this->createPermission($data);
         }
 
         $this->resetForm();
-        $this->dispatch('closeModal');
+        $this->closeFormModal();
     }
 
-    public function deleteConfirm($id)
+    public function confirmDelete(): void
     {
-        $this->deleteId = $id;
-        $this->dispatch('openDeleteModal');
-    }
+        if (empty($this->deleteId)) {
+            $this->toastError('ID permission tidak valid.');
+            $this->closeDeleteModal();
+            return;
+        }
 
-    public function confirmDelete()
-    {
-        $permission = Permission::findOrFail($this->deleteId);
+        $permission = Permission::find($this->deleteId);
+        
+        if (!$permission) {
+            $this->toastError('Permission tidak ditemukan.');
+            $this->closeDeleteModal();
+            return;
+        }
 
-        // Check if permission is assigned to any role
-        if ($permission->roles()->count() > 0) {
-            session()->flash('error', 'Permission tidak dapat dihapus karena masih digunakan oleh role.');
-            $this->dispatch('closeDeleteModal');
+        if ($this->hasAssignedRoles($permission)) {
+            $this->toastError('Permission tidak dapat dihapus karena masih digunakan oleh role.');
+            $this->closeDeleteModal();
             return;
         }
 
         $permission->delete();
-
-        session()->flash('success', 'Permission berhasil dihapus.');
-        $this->dispatch('closeDeleteModal');
-        $this->deleteId = null;
+        
+        $this->toastSuccess($this->getSuccessMessage('delete', 'Permission'));
+        $this->closeDeleteModal();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Private Methods
+    |--------------------------------------------------------------------------
+    */
+    private function createPermission(array $data): void
+    {
+        Permission::create($data);
+        $this->toastSuccess($this->getSuccessMessage('create', 'Permission'));
+    }
+
+    private function updatePermission(array $data): void
+    {
+        $permission = Permission::findOrFail($this->permissionId);
+        $permission->update($data);
+        $this->toastSuccess($this->getSuccessMessage('update', 'Permission'));
+    }
+
+    private function hasAssignedRoles(Permission $permission): bool
+    {
+        return $permission->roles()->exists();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trait Implementation
+    |--------------------------------------------------------------------------
+    */
+    protected function getFormFields(): array
+    {
+        return ['name', 'permissionId'];
+    }
+
+    protected function getFormData(): array
+    {
+        return [
+            'name' => $this->name,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Render
+    |--------------------------------------------------------------------------
+    */
     public function render()
     {
-        $permissions = Permission::with('roles')
-            ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%');
-            })
-            ->withCount('roles')
-            ->orderBy('name')
-            ->paginate(15);
-
-        return view('livewire.access-control.permission.index', [
-            'permissions' => $permissions,
-        ]);
+        return view('livewire.access-control.permission.index');
     }
 }

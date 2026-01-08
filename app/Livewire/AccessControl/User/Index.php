@@ -5,47 +5,52 @@ namespace App\Livewire\AccessControl\User;
 use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\{Title, Layout, Computed};
 use Spatie\Permission\Models\Role;
-use Illuminate\Support\Facades\Hash;
-use Livewire\Attributes\Title;
-use Livewire\Attributes\Layout;
+use Illuminate\Support\Facades\{Auth, Hash};
+use App\Livewire\Traits\WithAccessControl;
 
 #[Layout('layouts.app')]
 #[Title('User Management')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithPagination, WithAccessControl;
 
-    public $search = '';
-    public $name = '';
-    public $email = '';
-    public $password = '';
-    public $selectedRole = '';
-    public $userId = null;
-    public $deleteId = null;
-    public $editMode = false;
+    /*
+    |--------------------------------------------------------------------------
+    | Form Properties
+    |--------------------------------------------------------------------------
+    */
+    public string $name = '';
+    public string $email = '';
+    public string $password = '';
+    public string $selectedRole = '';
+    public ?string $userId = null;
 
-    protected $paginationTheme = 'bootstrap';
-
-    protected function rules()
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Rules & Messages
+    |--------------------------------------------------------------------------
+    */
+    protected function rules(): array
     {
         $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $this->userId,
-            'selectedRole' => 'required|string|exists:roles,name',
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', "unique:users,email,{$this->userId},id_user"],
+            'selectedRole' => ['required', 'string', 'exists:roles,name'],
         ];
 
-        if (!$this->editMode) {
-            $rules['password'] = 'required|string|min:8';
-        } else {
-            $rules['password'] = 'nullable|string|min:8';
-        }
+        // Password required hanya untuk create, optional untuk update
+        $rules['password'] = $this->editMode 
+            ? ['nullable', 'string', 'min:8'] 
+            : ['required', 'string', 'min:8'];
 
         return $rules;
     }
 
-    protected $messages = [
+    protected array $messages = [
         'name.required' => 'Nama wajib diisi.',
+        'name.max' => 'Nama maksimal 255 karakter.',
         'email.required' => 'Email wajib diisi.',
         'email.email' => 'Format email tidak valid.',
         'email.unique' => 'Email sudah digunakan.',
@@ -55,102 +60,164 @@ class Index extends Component
         'selectedRole.exists' => 'Role tidak valid.',
     ];
 
-    public function updatingSearch()
+    /*
+    |--------------------------------------------------------------------------
+    | Computed Properties
+    |--------------------------------------------------------------------------
+    */
+    #[Computed]
+    public function users()
     {
-        $this->resetPage();
+        return User::query()
+            ->with('roles')
+            ->when($this->search, fn($query) => 
+                $query->where('name', 'like', "%{$this->search}%")
+                    ->orWhere('email', 'like', "%{$this->search}%")
+            )
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
     }
 
-    public function resetForm()
+    #[Computed]
+    public function roles()
     {
-        $this->reset(['name', 'email', 'password', 'selectedRole', 'userId', 'editMode']);
-        $this->resetValidation();
+        return Role::query()
+            ->orderBy('name')
+            ->get();
     }
 
-    public function edit($id)
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD Operations
+    |--------------------------------------------------------------------------
+    */
+    public function edit(string $id): void
     {
         $this->resetForm();
+        
+        $user = User::with('roles')->findOrFail($id);
+        
         $this->editMode = true;
         $this->userId = $id;
-
-        $user = User::findOrFail($id);
         $this->name = $user->name;
         $this->email = $user->email;
         $this->selectedRole = $user->roles->first()?->name ?? '';
     }
 
-    public function save()
+    public function save(): void
     {
         $this->validate();
 
         if ($this->editMode) {
-            $user = User::findOrFail($this->userId);
-            $user->update([
-                'name' => $this->name,
-                'email' => $this->email,
-            ]);
-
-            if ($this->password) {
-                $user->update(['password' => Hash::make($this->password)]);
-            }
-
-            $user->syncRoles([$this->selectedRole]);
-
-            session()->flash('success', 'User berhasil diperbarui.');
+            $this->updateUser();
         } else {
-            $user = User::create([
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => Hash::make($this->password),
-            ]);
-
-            $user->assignRole($this->selectedRole);
-
-            session()->flash('success', 'User berhasil ditambahkan.');
+            $this->createUser();
         }
 
         $this->resetForm();
-        $this->dispatch('closeModal');
+        $this->closeFormModal();
     }
 
-    public function deleteConfirm($id)
+    public function confirmDelete(): void
     {
-        $this->deleteId = $id;
-        $this->dispatch('openDeleteModal');
-    }
-
-    public function confirmDelete()
-    {
-        $user = User::findOrFail($this->deleteId);
-
-        // Prevent deleting own account
-        if ($user->id_user === \Illuminate\Support\Facades\Auth::user()->id_user) {
-            session()->flash('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
-            $this->dispatch('closeDeleteModal');
+        if (empty($this->deleteId)) {
+            $this->toastError('ID user tidak valid.');
+            $this->closeDeleteModal();
             return;
         }
 
-        $user->delete();
+        $user = User::find($this->deleteId);
+        
+        if (!$user) {
+            $this->toastError('User tidak ditemukan.');
+            $this->closeDeleteModal();
+            return;
+        }
 
-        session()->flash('success', 'User berhasil dihapus.');
-        $this->dispatch('closeDeleteModal');
-        $this->deleteId = null;
+        if ($this->isDeletingSelf($user)) {
+            $this->toastError('Anda tidak dapat menghapus akun Anda sendiri.');
+            $this->closeDeleteModal();
+            return;
+        }
+
+        // Remove all roles before deleting
+        $user->syncRoles([]);
+        
+        $user->delete();
+        
+        $this->toastSuccess($this->getSuccessMessage('delete', 'User'));
+        $this->closeDeleteModal();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Private Methods
+    |--------------------------------------------------------------------------
+    */
+    private function createUser(): void
+    {
+        $user = User::create([
+            'name' => $this->name,
+            'email' => $this->email,
+            'password' => Hash::make($this->password),
+        ]);
+
+        $user->assignRole($this->selectedRole);
+        
+        $this->toastSuccess($this->getSuccessMessage('create', 'User'));
+    }
+
+    private function updateUser(): void
+    {
+        $user = User::findOrFail($this->userId);
+        
+        $user->update([
+            'name' => $this->name,
+            'email' => $this->email,
+        ]);
+
+        // Update password hanya jika diisi
+        if (filled($this->password)) {
+            $user->update(['password' => Hash::make($this->password)]);
+        }
+
+        $user->syncRoles([$this->selectedRole]);
+        
+        $this->toastSuccess($this->getSuccessMessage('update', 'User'));
+    }
+
+    private function isDeletingSelf(User $user): bool
+    {
+        return $user->id_user === Auth::user()->id_user;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trait Implementation
+    |--------------------------------------------------------------------------
+    */
+    protected function getFormFields(): array
+    {
+        return ['name', 'email', 'password', 'selectedRole', 'userId'];
+    }
+
+    protected function getFormData(): array
+    {
+        return [
+            'name' => $this->name,
+            'email' => $this->email,
+            'password' => $this->password,
+            'role' => $this->selectedRole,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Render
+    |--------------------------------------------------------------------------
+    */
     public function render()
     {
-        $users = User::with('roles')
-            ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%')
-                    ->orWhere('email', 'like', '%' . $this->search . '%');
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        $roles = Role::all();
-
-        return view('livewire.access-control.user.index', [
-            'users' => $users,
-            'roles' => $roles,
-        ]);
+        return view('livewire.access-control.user.index');
     }
 }
