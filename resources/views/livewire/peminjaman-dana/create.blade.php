@@ -1,19 +1,16 @@
 <div>
-    <div
-        class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <h1 class="mb-1 fw-bold">Pengajuan Peminjaman Dana</h1>
-    </div>
+    <h1 class="text-2xl font-bold mb-2">Pengajuan Peminjaman Dana</h1>
 
     <div class="card">
-        <div class="card-body">
+        <div class="card-body" x-data="{ jenisPembiayaan: '' }">
             <!-- Nama Perusahaan -->
             <div class="mb-4">
                 <label for="nama_perusahaan" class="form-label">Nama Perusahaan</label>
                 <input type="text" class="form-control" id="nama_perusahaan" placeholder="Masukkan nama perusahaan" />
             </div>
 
-            <!-- Jenis Pembiayaan Section -->
-            <div class="border border-1 rounded-2 mb-4 p-4">
+            <!-- Tidak atau masih belum dipakai hingga keputusan kedepannya -->
+            {{-- <div class="border border-1 rounded-2 mb-4 p-4">
                 <label class="form-label fw-medium d-block mb-3">Sumber Pembiayaan</label>
                 <div class="d-flex gap-4">
                     <div class="form-check">
@@ -39,7 +36,7 @@
                         <option value="4">Bank BTN</option>
                     </select>
                 </div>
-            </div>
+            </div> --}}
 
             <div class="border border-1 rounded-2 mb-4 p-4">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -76,131 +73,39 @@
 
             <div class="border border-1 rounded-2 mb-4 p-4">
                 <label class="form-label fw-medium d-block mb-3 mt-3">Jenis Pembiayaan</label>
-                <div class="d-flex gap-4">
+                <div class="d-flex gap-4 flex-wrap">
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="jenis_pembiayaan" id="invoice_financing"
-                            value="invoice_financing" />
+                            value="invoice_financing" x-model="jenisPembiayaan" />
                         <label class="form-check-label" for="invoice_financing">Invoice Financing</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="jenis_pembiayaan" id="po_financing"
-                            value="po_financing" />
+                            value="po_financing" x-model="jenisPembiayaan" />
                         <label class="form-check-label" for="po_financing">PO Financing</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="jenis_pembiayaan" id="installment"
-                            value="installment" />
+                            value="installment" x-model="jenisPembiayaan" />
                         <label class="form-check-label" for="installment">Installment</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="jenis_pembiayaan" id="factoring"
-                            value="factoring" />
+                            value="factoring" x-model="jenisPembiayaan" />
                         <label class="form-check-label" for="factoring">Factoring</label>
                     </div>
                 </div>
 
-                <div class="card border-0 shadow-none mt-4 mb-4">
-                    <div class="card-header d-flex justify-content-between items-center">
-                        <h5>Bukti Penjamin</h5>
-                        <button type="button" class="btn btn-primary">
-                            Tambah Bukti Penjamin
-                        </button>
-                    </div>
-                    <div class="table-responsive text-nowrap">
-                        <table class="table">
-                            <thead>
-                                <tr class="text-nowrap">
-                                    <th>No</th>
-                                    <th>NO. INVOICE</th>
-                                    <th>NAMA CLIENT</th>
-                                    <th>NILAI INVOICE</th>
-                                    <th>NILAI PINJAMAN</th>
-                                    <th>NILAI BAGI HASIL</th>
-                                    <th>INVOICE DATE</th>
-                                    <th>DUE DATE</th>
-                                    <th>DOKUMEN INVOICE </th>
-                                    <th>DOKUMEN KONTRAK</th>
-                                    <th>DOKUMEN SO</th>
-                                    <th>DOKUMEN BAST</th>
-                                    <th>AKSI</th>
-                                </tr>
-                            </thead>
-                            <tbody class="table-border-bottom-0">
-                                <tr>
-                                    <th scope="row">1</th>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">2</th>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">3</th>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                    <td>Table cell</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                {{-- Info text ketika belum ada pilihan --}}
+                <div x-show="!jenisPembiayaan" class="alert alert-info mt-4 mb-0">
+                    <i class="ti ti-info-circle me-2"></i>
+                    Silakan pilih jenis pembiayaan untuk menampilkan tabel dokumen yang sesuai.
                 </div>
+
+                @include('livewire.peminjaman-dana.component.table-jaminan')
             </div>
 
-            <div class="border border-1 rounded-2 mb-4 p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    <div class="mb-3">
-                        <label for="total_nilai_pinjaman" class="form-label">Total Nilai Pinjaman</label>
-                        <input type="text" class="form-control" id="total_nilai_pinjaman"
-                            placeholder="Masukkan total nilai pinjaman" disabled />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="total_nilai_bagi_hasil" class="form-label">Total Nilai Bagi Hasil</label>
-                        <input type="text" class="form-control" id="total_nilai_bagi_hasil"
-                            placeholder="Masukkan total nilai bagi hasil" disabled />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="total_jumlah_pinjaman" class="form-label">Total Jumlah Pinjaman</label>
-                        <input type="text" class="form-control" id="total_jumlah_pinjaman"
-                            placeholder="Masukkan total jumlah pinjaman" disabled />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="mb-6">
-                        <label for="flatpickr-date" class="form-label">Harapan Tanggal Pencairan</label>
-                        <input type="text" class="form-control" placeholder="YYYY-MM-DD" id="flatpickr-date" />
-                    </div>
-
-                    <div class="mb-6">
-                        <label for="flatpickr-date" class="form-label">Rencana Tanggal Pembayaran</label>
-                        <input type="text" class="form-control" placeholder="YYYY-MM-DD" id="flatpickr-date" />
-                    </div>
-                </div>
-            </div>
+            @include('livewire.peminjaman-dana.component.perhitungan-pinjaman')
 
             <!-- Tombol Submit -->
             <div class="d-flex justify-content-end gap-2">
@@ -219,17 +124,23 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             initSelect2();
+            initFlatpickr();
         });
 
         // Re-initialize after Livewire updates
         document.addEventListener('livewire:navigated', function() {
             initSelect2();
+            initFlatpickr();
+        });
+
+        // Re-initialize when modal is shown
+        document.addEventListener('shown.bs.modal', function() {
+            initFlatpickr();
         });
 
         function initSelect2() {
             const select2Elements = document.querySelectorAll('.select2');
             select2Elements.forEach(function(el) {
-                // Destroy existing Select2 instance if exists
                 if ($(el).data('select2')) {
                     $(el).select2('destroy');
                 }
@@ -238,7 +149,33 @@
                 $(el).select2({
                     placeholder: el.getAttribute('data-placeholder') || 'Pilih...',
                     allowClear: el.hasAttribute('data-allow-clear'),
-                    dropdownParent: $(el).parent()
+                    dropdownParent: $(el).closest('.modal').length ? $(el).closest('.modal') : $(el)
+                    .parent()
+                });
+            });
+        }
+
+        function initFlatpickr() {
+            // Date Picker (DD/MM/YYYY format)
+            document.querySelectorAll('.flatpickr-date').forEach(function(el) {
+                if (el._flatpickr) {
+                    el._flatpickr.destroy();
+                }
+                flatpickr(el, {
+                    dateFormat: 'd/m/Y',
+                    allowInput: true
+                });
+            });
+
+            // DateTime Picker
+            document.querySelectorAll('.flatpickr-datetime').forEach(function(el) {
+                if (el._flatpickr) {
+                    el._flatpickr.destroy();
+                }
+                flatpickr(el, {
+                    dateFormat: 'd/m/Y H:i',
+                    enableTime: true,
+                    allowInput: true
                 });
             });
         }

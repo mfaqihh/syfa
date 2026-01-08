@@ -103,7 +103,21 @@
                 <div data-i18n="Access Control">Access Control</div>
             </a>
             <ul class="menu-sub">
-  
+                <li class="menu-item {{ request()->routeIs('access-control.user') ? 'active' : '' }}">
+                    <a href="{{ route('access-control.user') }}" class="menu-link" wire:navigate.hover>
+                        <div data-i18n="User">User</div>
+                    </a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('access-control.role') ? 'active' : '' }}">
+                    <a href="{{ route('access-control.role') }}" class="menu-link" wire:navigate.hover>
+                        <div data-i18n="Role">Role</div>
+                    </a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('access-control.permission') ? 'active' : '' }}">
+                    <a href="{{ route('access-control.permission') }}" class="menu-link" wire:navigate.hover>
+                        <div data-i18n="Permission">Permission</div>
+                    </a>
+                </li>
             </ul>
         </li>
     </ul>

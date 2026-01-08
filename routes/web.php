@@ -37,6 +37,11 @@ Route::middleware([
     });
 
     Route::prefix('access-control')->name('access-control.')->group(function () {
-
+        Route::get('/user', \App\Livewire\AccessControl\User\Index::class)
+            ->name('user');
+        Route::get('/role', \App\Livewire\AccessControl\Role\Index::class)
+            ->name('role');
+        Route::get('/permission', \App\Livewire\AccessControl\Permission\Index::class)
+            ->name('permission');
     });
 });
